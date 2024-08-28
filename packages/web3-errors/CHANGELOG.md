@@ -172,4 +172,16 @@ Documentation:
 
 - Added `InvalidIntegerError` error for fromWei and toWei (#7052)
 
+## [1.2.1]
+
+### Fixed
+
+- Fixed the undefined data in `Eip838ExecutionError` constructor (#6905)
+
+## [1.3.0]
+
+### Added
+
+- Added optional `statusCode` property of response in ResponseError.
+
 ## [Unreleased]

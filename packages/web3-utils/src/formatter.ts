@@ -57,10 +57,8 @@ const findSchemaByDataPath = (
 
 	for (const dataPart of dataPath) {
 		if (result.oneOf && previousDataPath) {
-			const path = oneOfPath.find(function (element: [string, number]) {
-				return (this as unknown as string) === element[0];
-			}, previousDataPath ?? '');
-
+			const currentDataPath = previousDataPath;
+			const path = oneOfPath.find(([key]) => key === currentDataPath);
 			if (path && path[0] === previousDataPath) {
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
 				result = result.oneOf[path[1]];
@@ -74,10 +72,6 @@ const findSchemaByDataPath = (
 			result = (result.properties as Record<string, JsonSchema>)[dataPart];
 		} else if (result.items && (result.items as JsonSchema).properties) {
 			const node = (result.items as JsonSchema).properties as Record<string, JsonSchema>;
-
-			if (!node) {
-				return undefined;
-			}
 
 			result = node[dataPart];
 		} else if (result.items && isObject(result.items)) {
@@ -137,6 +131,11 @@ export const convertScalarValue = (value: unknown, ethType: string, format: Data
 					throw new FormatterError(`Invalid format: ${String(format.bytes)}`);
 			}
 		}
+
+		if (baseType === 'string') {
+            return String(value);
+        }
+
 	} catch (error) {
 		// If someone didn't use `eth` keyword we can return original value
 		// as the scope of this code is formatting not validation
@@ -295,7 +294,7 @@ export const convert = (
 	} else {
 		for (const [key, value] of Object.entries(object)) {
 			dataPath.push(key);
-			const schemaProp = findSchemaByDataPath(schema, dataPath, oneOfPath);
+			let schemaProp = findSchemaByDataPath(schema, dataPath, oneOfPath);
 
 			// If value is a scaler value
 			if (isNullish(schemaProp)) {
@@ -307,7 +306,7 @@ export const convert = (
 
 			// If value is an object, recurse into it
 			if (isObject(value)) {
-				convert(value, schema, dataPath, format);
+				convert(value, schema, dataPath, format, oneOfPath);
 				dataPath.pop();
 				continue;
 			}
@@ -327,6 +326,20 @@ export const convert = (
 			) {
 				continue;
 			}
+
+			// The following code is basically saying:
+            // if the schema specifies oneOf, then we are to loop
+            // over each possible schema and check if they type of the schema specifies format
+            // and if so we use the oneOfSchemaProp as the schema for formatting
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            if ((schemaProp?.format === undefined) && (schemaProp?.oneOf !== undefined)) {
+                for (const [_index, oneOfSchemaProp] of schemaProp.oneOf.entries()) {
+                    if ((oneOfSchemaProp?.format !== undefined)) {
+                        schemaProp = oneOfSchemaProp;
+                        break;
+                    }
+                };
+            }
 
 			object[key] = convertScalarValue(value, schemaProp.format as string, format);
 

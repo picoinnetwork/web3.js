@@ -5,7 +5,6 @@ on:
         - release/**
       tags:
         - v4.*
-
 jobs:
   build:
     name: Build Packages
@@ -14,7 +13,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
           cache: yarn
       - run: yarn
       - run: tar -czf /tmp/web3-16.js.tar.gz --exclude="./.git" ./
@@ -41,7 +40,7 @@ jobs:
       steps:
         - uses: actions/setup-node@v3
           with:
-            node-version: 16
+            node-version: 18
         - uses: actions/download-artifact@v3
           with:
             name: web3-16.js.tar.gz

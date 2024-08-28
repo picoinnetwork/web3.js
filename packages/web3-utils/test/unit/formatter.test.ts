@@ -24,9 +24,10 @@ import {
 	HexString,
 	Numbers,
 } from 'web3-types';
+import { FormatterError } from 'web3-errors';
 import { expectTypeOf, typecheck } from '@humeris/espresso-shot';
 import { isDataFormatValid, convertScalarValueValid } from '../fixtures/formatter';
-import { format, isDataFormat, convertScalarValue } from '../../src/formatter';
+import { format, isDataFormat, convertScalarValue, convert } from '../../src/formatter';
 import { hexToBytes } from '../../src/converters';
 
 type TestTransactionInfoType = {
@@ -478,6 +479,17 @@ describe('formatter', () => {
 					).toEqual(new Uint8Array([16, 11, 202]));
 				});
 			});
+
+			describe('string', () => {
+				it('should format string for 123', () => {
+					expect(
+						format({ format: 'string' }, 123, {
+							number: FMT_NUMBER.STR,
+							bytes: FMT_BYTES.HEX,
+						}),
+					).toBe('123');
+				});
+			});
 		});
 
 		describe('array values', () => {
@@ -738,7 +750,6 @@ describe('formatter', () => {
 				).toEqual(result);
 			});
 		});
-
 		describe('object values', () => {
 			it('should format simple object', () => {
 				const schema = {
@@ -774,6 +785,13 @@ describe('formatter', () => {
 				});
 
 				expect(result).toEqual(expected);
+			});
+
+			it('should throw FormatterError when jsonSchema is invalid', () => {
+				const invalidSchema1 = {};
+				const data = { key: 'value' };
+
+				expect(() => format(invalidSchema1, data)).toThrow(FormatterError);
 			});
 
 			it('should format nested objects', () => {
@@ -820,6 +838,56 @@ describe('formatter', () => {
 
 				expect(result).toEqual(expected);
 			});
+
+			it('should format object with oneOf', () => {
+				const schema = {
+					type: 'object',
+					properties: {
+						from: {
+							format: 'address',
+						},
+						to: {
+							oneOf: [{ format: 'string' }, { type: 'null' }],
+						},
+					},
+				};
+
+				const data ={
+					from: '0x7ed0e85b8e1e925600b4373e6d108f34ab38a401',
+					to: 123,
+				}
+				;
+
+				const result = { from: '0x7ed0e85b8e1e925600b4373e6d108f34ab38a401', to: '123' };
+
+				expect(
+					format(schema, data, { number: FMT_NUMBER.HEX, bytes: FMT_BYTES.HEX }),
+				).toEqual(result);
+			});
+
+			it('should format object with oneOf when property is undefined', () => {
+				const schema = {
+					type: 'object',
+					properties: {
+						from: {
+							format: 'address',
+						},
+						to: {
+							oneOf: [{ format: 'string' }, { type: 'null' }],
+						},
+					},
+				};
+
+				const data ={
+					from: '0x7ed0e85b8e1e925600b4373e6d108f34ab38a401'
+				};
+
+				const result = { from: '0x7ed0e85b8e1e925600b4373e6d108f34ab38a401'};
+
+				expect(
+					format(schema, data, { number: FMT_NUMBER.HEX, bytes: FMT_BYTES.HEX }),
+				).toEqual(result);
+			});
 		});
 		describe('isDataFormat', () => {
 			describe('valid cases', () => {
@@ -844,6 +912,18 @@ describe('formatter', () => {
 					).toBe(BigInt(100));
 				});
 			});
+		});
+	});
+
+	describe('convert', () => {
+		it('should return empty when no properties or items', () => {
+			const data = { key: 'value' };
+			const schema = {
+				type: 'object',
+			};
+			const f = { number: FMT_NUMBER.NUMBER, bytes: FMT_BYTES.HEX };
+			const result = convert(data, schema, [], f, []);
+			expect(result).toEqual({});
 		});
 	});
 });

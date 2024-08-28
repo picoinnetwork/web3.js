@@ -30,6 +30,7 @@ import { Personal } from 'web3-eth-personal';
 import { Net } from 'web3-net';
 import * as utils from 'web3-utils';
 import { isNullish, isDataFormat, isContractInitOptions } from 'web3-utils';
+import { mainnet } from 'web3-rpc-providers';
 import {
 	Address,
 	ContractAbi,
@@ -67,10 +68,10 @@ export class Web3<
 	public eth: Web3EthInterface;
 
 	public constructor(
-		providerOrContext?:
+		providerOrContext:
 			| string
 			| SupportedProviders<EthExecutionAPI>
-			| Web3ContextInitOptions<EthExecutionAPI, CustomRegisteredSubscription>,
+			| Web3ContextInitOptions<EthExecutionAPI, CustomRegisteredSubscription> = mainnet,
 	) {
 		if (
 			isNullish(providerOrContext) ||
@@ -141,12 +142,6 @@ export class Web3<
 				addressOrOptionsOrContext?: Address | ContractInitOptions,
 				optionsOrContextOrReturnFormat?: ContractInitOptions,
 				contextOrReturnFormat?: Web3Context | DataFormat,
-			);
-			public constructor(
-				jsonInterface: Abi,
-				addressOrOptionsOrContext?: Address | ContractInitOptions,
-				optionsOrContextOrReturnFormat?: ContractInitOptions,
-				contextOrReturnFormat?: Web3Context | DataFormat,
 				returnFormat?: DataFormat,
 			) {
 				if (
@@ -202,6 +197,15 @@ export class Web3<
 
 				super(jsonInterface, address, options, context, dataFormat);
 				super.subscribeToContextEvents(self);
+
+				// eslint-disable-next-line no-use-before-define
+				if (!isNullish(eth)) {
+					// eslint-disable-next-line no-use-before-define
+					const TxMiddleware = eth.getTransactionMiddleware();
+					if (!isNullish(TxMiddleware)) {
+						super.setTransactionMiddleware(TxMiddleware);
+					}
+				}
 			}
 		}
 
